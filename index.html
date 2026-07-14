@@ -1,397 +1,426 @@
-<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-<meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover"/>
-<title>MarkIt</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
-<style>
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-:root{
-  --bg:#fceef5;
-  --panel:#fff;
-  --border:#DFE1E6;
-  --shadow:0 1px 3px rgba(0,0,0,0.08);
-  --blue:#4a90e2;
-  --active-bg:#e8f0fe;
-  --font:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",sans-serif;
-}
-html,body{
-  height:100dvh;overflow:hidden;
-  font-family:var(--font);
-  background:var(--bg);
-  transition:background .3s;
-  user-select:none;-webkit-user-select:none;
-}
-#topbar{
-  position:fixed;
-  top:max(10px,env(safe-area-inset-top));
-  right:max(14px,env(safe-area-inset-right));
-  display:flex;align-items:center;gap:6px;
-  z-index:200;
-}
-.tb-btn{
-  display:flex;align-items:center;justify-content:center;gap:6px;
-  height:34px;padding:0 11px;
-  background:#fff;border:1px solid var(--border);border-radius:17px;
-  box-shadow:var(--shadow);
-  font-size:12.5px;font-weight:500;color:#1c1c1e;
-  cursor:pointer;white-space:nowrap;
-  transition:background .13s,border-color .13s,transform .1s;
-  -webkit-tap-highlight-color:transparent;
-}
-.tb-btn svg{flex-shrink:0}
-.tb-btn:hover{background:#f5f5f7}
-.tb-btn:active{transform:scale(.95)}
-.tb-btn.active{background:var(--active-bg);border-color:var(--blue)}
-.tb-divider{width:1px;height:18px;background:var(--border)}
-#canvas-wrapper{
-  position:fixed;inset:0;
-  background:transparent;
-}
-#c{display:block;width:100%!important;height:100%!important}
-.lower-canvas,.upper-canvas{
-  position:absolute!important;top:0!important;left:0!important;
-}
-#pen-ball{
-  position:fixed;right:14px;top:50%;
-  transform:translateY(-50%);
-  z-index:300;display:none;flex-direction:column;align-items:center;
-  touch-action:none;
-}
-#pen-ball.visible{display:flex}
-#pen-trigger{
-  width:46px;height:46px;border-radius:50%;
-  background:#fff;border:1.5px solid var(--border);
-  box-shadow:0 2px 10px rgba(0,0,0,0.13);
-  display:flex;align-items:center;justify-content:center;
-  cursor:pointer;transition:transform .13s;
-  -webkit-tap-highlight-color:transparent;
-}
-#pen-trigger:active{transform:scale(.92)}
-#pen-trigger svg{width:20px;height:20px;color:#1c1c1e}
-#pen-panel{
-  display:none;flex-direction:column;align-items:center;gap:10px;
-  background:#fff;border:1px solid var(--border);border-radius:20px;
-  padding:14px 10px;margin-top:8px;min-width:56px;
-  box-shadow:0 6px 24px rgba(0,0,0,0.11);
-}
-#pen-panel.open{display:flex}
-.pen-icon-btn{
-  width:40px;height:40px;border-radius:50%;
-  background:#f5f5f7;border:1.5px solid transparent;
-  display:flex;align-items:center;justify-content:center;
-  cursor:pointer;transition:background .12s,border-color .12s;
-  -webkit-tap-highlight-color:transparent;
-}
-.pen-icon-btn.active{background:var(--active-bg);border-color:var(--blue)}
-.pen-icon-btn svg{width:22px;height:22px}
-.panel-label{font-size:10px;color:#aaa;font-weight:500;letter-spacing:.04em}
-.panel-rule{width:30px;height:1px;background:#eee}
-#size-track{
-  display:flex;align-items:center;justify-content:center;
-  width:30px;height:90px;
-}
-#size-slider{
-  -webkit-appearance:none;appearance:none;
-  writing-mode:vertical-lr;direction:rtl;
-  width:4px;height:90px;
-  border-radius:2px;outline:none;cursor:pointer;
-  background:linear-gradient(to top,var(--blue) var(--pct,10%),#e0e0e0 var(--pct,10%));
-}
-#size-slider::-webkit-slider-thumb{
-  -webkit-appearance:none;
-  width:18px;height:18px;border-radius:50%;
-  background:#fff;border:2px solid var(--blue);
-  box-shadow:0 1px 4px rgba(0,0,0,0.18);
-}
-#color-section{display:flex;flex-direction:column;align-items:center;gap:8px;}
-#color-palette{display:flex;flex-direction:column;gap:8px;}
-.color-row{display:flex;gap:8px;}
-.color-btn{
-  width:22px;height:22px;border-radius:50%;border:2px solid transparent;
-  cursor:pointer;transition:border-color .12s,transform .1s;
-  -webkit-tap-highlight-color:transparent;
-}
-.color-btn:hover{transform:scale(1.1)}
-.color-btn.active{border-color:var(--blue)}
-#confirm-overlay{
-  display:none;position:fixed;inset:0;
-  background:rgba(0,0,0,0.22);z-index:600;
-  align-items:center;justify-content:center;
-  backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
-}
-#confirm-overlay.show{display:flex}
-#confirm-box{
-  background:#fff;border-radius:20px;padding:26px 28px;
-  width:290px;box-shadow:0 10px 40px rgba(0,0,0,0.14);text-align:center;
-}
-#confirm-box h3{font-size:16px;font-weight:600;margin-bottom:8px}
-#confirm-box p{font-size:13px;color:#666;line-height:1.55;margin-bottom:20px}
-#confirm-box .btn-row{display:flex;gap:10px}
-#confirm-box button{
-  flex:1;height:42px;border-radius:13px;border:none;
-  font-size:14px;font-weight:500;cursor:pointer;
-  transition:opacity .12s;
-}
-#confirm-box button:active{opacity:.72}
-#btn-cancel{background:#f0f0f2;color:#1c1c1e}
-#btn-confirm{background:#ff3b30;color:#fff}
-#toast{
-  position:fixed;bottom:30px;left:50%;
-  transform:translateX(-50%) translateY(16px);
-  background:rgba(28,28,30,.86);color:#fff;
-  padding:9px 20px;border-radius:22px;font-size:13px;
-  z-index:700;opacity:0;pointer-events:none;
-  transition:opacity .18s,transform .18s;
-  backdrop-filter:blur(10px);white-space:nowrap;
-}
-#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
-body.reading #topbar{opacity:0;pointer-events:none}
-body.reading #pen-ball{display:none!important}
-#exit-reading{
-  display:none;position:fixed;
-  top:max(10px,env(safe-area-inset-top));
-  right:max(14px,env(safe-area-inset-right));
-  z-index:400;
-}
-body.reading #exit-reading{display:flex}
-#footer-brand{
-  position:fixed;
-  bottom:max(10px,env(safe-area-inset-bottom));
-  left:50%;
-  transform:translateX(-50%);
-  font-size:12px;
-  font-weight:600;
-  color:rgba(0,0,0,0.25);
-  letter-spacing:0.5px;
-  z-index:150;
-  pointer-events:none;
-  user-select:none;
-  -webkit-user-select:none;
-}
-</style>
-</head>
-<body>
-
-<svg style="display:none" xmlns="http://www.w3.org/2000/svg">
-  <defs>
-    <symbol id="icon-pen" viewBox="0 0 24 24"><path fill="currentColor" d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 000-1.41l-2.34-2.34a1 1 0 00-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></symbol>
-    <symbol id="icon-marker" viewBox="0 0 24 24"><rect fill="currentColor" x="5" y="3" width="14" height="10" rx="2"/><polygon fill="currentColor" points="9,13 15,13 12,20"/><rect fill="currentColor" x="11" y="19" width="2" height="2.5" rx="1"/></symbol>
-    <symbol id="icon-eraser" viewBox="0 0 24 24"><path fill="currentColor" d="M15.14 3L3 15.14 8.86 21H20v-2H11.17l-4-4L18 4.86 15.14 3z"/><path fill="currentColor" d="M3 21h18v-1H3z"/></symbol>
-    <symbol id="icon-draw" viewBox="0 0 24 24"><path fill="currentColor" d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34a.9959.9959 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></symbol>
-    <symbol id="icon-paste" viewBox="0 0 24 24"><path fill="currentColor" d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></symbol>
-    <symbol id="icon-undo" viewBox="0 0 24 24"><path fill="currentColor" d="M12.5 8c-2.65 0-5.05.99-6.9 2.6L2 7v9h9l-3.62-3.62c1.39-1.16 3.16-1.88 5.12-1.88 3.54 0 6.55 2.31 7.6 5.5l2.37-.78C21.08 11.03 17.15 8 12.5 8z"/></symbol>
-    <symbol id="icon-trash" viewBox="0 0 24 24"><path fill="currentColor" d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></symbol>
-    <symbol id="icon-book" viewBox="0 0 24 24"><path fill="currentColor" d="M21 5c-1.11-.35-2.33-.5-3.5-.5-1.95 0-4.05.4-5.5 1.5-1.45-1.1-3.55-1.5-5.5-1.5S2.45 4.9 1 6v14.65c0 .25.25.5.5.5.1 0 .15-.05.25-.05C3.1 20.45 5.05 20 6.5 20c1.95 0 4.05.4 5.5 1.5 1.35-.85 3.8-1.5 5.5-1.5 1.65 0 3.35.3 4.75 1.05.1.05.15.05.25.05.25 0 .5-.25.5-.5V6c-.6-.45-1.25-.75-2-1zm0 13.5c-1.1-.35-2.3-.5-3.5-.5-1.7 0-4.15.65-5.5 1.5V8c1.35-.85 3.8-1.5 5.5-1.5 1.2 0 2.4.15 3.5.5v11.5z"/></symbol>
-    <symbol id="icon-palette" viewBox="0 0 24 24"><path fill="currentColor" d="M12 3c-4.97 0-9 4.03-9 9s4.03 9 9 9c.83 0 1.5-.67 1.5-1.5 0-.39-.15-.74-.39-1.01-.23-.26-.38-.61-.38-.99 0-.83.67-1.5 1.5-1.5H16c2.76 0 5-2.24 5-5 0-4.42-4.03-8-9-8zm-5.5 9c-.83 0-1.5-.67-1.5-1.5S5.67 9 6.5 9 8 9.67 8 10.5 7.33 12 6.5 12zm3-4C8.67 8 8 7.33 8 6.5S8.67 5 9.5 5s1.5.67 1.5 1.5S10.33 8 9.5 8zm5 0c-.83 0-1.5-.67-1.5-1.5S13.67 5 14.5 5s1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/></symbol>
-    <symbol id="icon-text" viewBox="0 0 24 24"><path fill="currentColor" d="M5 4v3h5.5v12h3V7H19V4H5z"/></symbol>
-    <symbol id="icon-save" viewBox="0 0 24 24"><path fill="currentColor" d="M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3s-1.34 3-3 3zm3-10H5V5h10v4z"/></symbol>
-  </defs>
-</svg>
-
-<div id="footer-brand">© MarkIt 2026</div>
-
-<div id="topbar">
-  <button class="tb-btn active" id="btn-text"><svg width="16" height="16"><use href="#icon-text"/></svg>文本</button>
-  <button class="tb-btn" id="btn-draw"><svg width="16" height="16"><use href="#icon-draw"/></svg>做题</button>
-  <div class="tb-divider"></div>
-  <button class="tb-btn" id="btn-paste" title="粘贴"><svg width="16" height="16"><use href="#icon-paste"/></svg></button>
-  <button class="tb-btn" id="btn-undo" title="撤销"><svg width="16" height="16"><use href="#icon-undo"/></svg></button>
-  <button class="tb-btn" id="btn-save" title="保存"><svg width="16" height="16"><use href="#icon-save"/></svg></button>
-  <button class="tb-btn" id="btn-clear" title="清空画布"><svg width="16" height="16"><use href="#icon-trash"/></svg></button>
-  <div class="tb-divider"></div>
-  <button class="tb-btn" id="btn-bg" title="切换背景"><svg width="16" height="16"><use href="#icon-palette"/></svg></button>
-  <button class="tb-btn" id="btn-reading" title="阅读模式"><svg width="16" height="16"><use href="#icon-book"/></svg></button>
-</div>
-
-<button class="tb-btn" id="exit-reading">
-  <svg width="14" height="14" viewBox="0 0 24 24"><path fill="currentColor" d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
-  退出阅读
-</button>
-
-<div id="canvas-wrapper"><canvas id="c"></canvas></div>
-
-<div id="pen-ball">
-  <div id="pen-trigger"><svg width="20" height="20"><use href="#icon-draw"/></svg></div>
-  <div id="pen-panel">
-    <span class="panel-label">工具</span>
-    <button class="pen-icon-btn active" data-tool="pen" title="钢笔"><svg><use href="#icon-pen"/></svg></button>
-    <button class="pen-icon-btn" data-tool="marker" title="荧光笔"><svg><use href="#icon-marker"/></svg></button>
-    <button class="pen-icon-btn" data-tool="eraser" title="橡皮擦"><svg><use href="#icon-eraser"/></svg></button>
-    <div class="panel-rule"></div>
-    <span class="panel-label">粗细</span>
-    <div id="size-track"><input type="range" id="size-slider" min="1" max="50" value="3"/></div>
-    <div class="panel-rule"></div>
-    <div id="color-section">
-      <span class="panel-label">颜色</span>
-      <div id="color-palette">
-        <div class="color-row" id="color-row-1"></div>
-        <div class="color-row" id="color-row-2"></div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<div id="confirm-overlay">
-  <div id="confirm-box">
-    <h3>清空画布</h3>
-    <p>所有内容将被删除，此操作不可恢复。</p>
-    <div class="btn-row">
-      <button id="btn-cancel">取消</button>
-      <button id="btn-confirm">清空</button>
-    </div>
-  </div>
-</div>
-
-<div id="toast"></div>
-
-<script>
-const PenColors = ['#2a303e', '#3094dd', '#d67780'];
-const MarkerColors = ['#fff18f', '#a6e3a1', '#80cbc4'];
-const STORAGE_KEY = 'markit_canvas_state';
-const S = {
-  mode:'text', tool:'pen', color:PenColors[0], size:3,
-  history:[], maxH:60, textObj:null, cardRect:null,
-};
-const fc = new fabric.Canvas('c', {isDrawingMode:false, selection:true, backgroundColor:'transparent', enableRetinaScaling:false});
-
-function autoSave(){
-  try {
-    const json = fc.toJSON(['excludeFromExport']);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(json));
-  } catch(e) {}
-}
-
-function loadSave(){
-  try {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if(saved){
-      const json = JSON.parse(saved);
-      fc.loadFromJSON(json, () => {
-        const objs = fc.getObjects();
-        S.cardRect = objs.find(o => o.excludeFromExport) || S.cardRect;
-        S.textObj = objs.find(o => o.type === 'i-text') || null;
-        fc.sendToBack(S.cardRect);
-        fc.clipPath = S.cardRect;
-        fc.setZoom(1);
-        fc.renderAll();
-      });
-    }
-  } catch(e) {}
-}
-
-function resize(){
-  const W=window.innerWidth,H=window.innerHeight;
-  fc.setWidth(W);fc.setHeight(H);
-  if(S.cardRect){
-    const dpr=window.devicePixelRatio||1,cm=37.8;
-    const l=Math.round(0.5*cm/dpr),t=Math.round(2*cm/dpr),b=Math.round(0.5*cm/dpr);
-    S.cardRect.set({left:l,top:t,width:W-l*2,height:H-t-b});
-    fc.sendToBack(S.cardRect);
-  }
-  fc.setZoom(1);
-  fc.renderAll();
-}
-window.addEventListener('resize', resize);
-function initCard(){
-  const W=window.innerWidth,H=window.innerHeight;
-  const dpr=window.devicePixelRatio||1,cm=37.8;
-  const l=Math.round(0.5*cm/dpr),t=Math.round(2*cm/dpr),b=Math.round(0.5*cm/dpr);
-  S.cardRect=new fabric.Rect({
-    left:l,top:t,width:W-l*2,height:H-t-b,
-    fill:'rgba(255,255,255,0.93)',rx:14,ry:14,stroke:'#DFE1E6',strokeWidth:1,
-    shadow:new fabric.Shadow({color:'rgba(0,0,0,0.07)',blur:14,offsetX:0,offsetY:2}),
-    selectable:false,evented:false,hoverCursor:'default',excludeFromExport:true
-  });
-  fc.add(S.cardRect);fc.sendToBack(S.cardRect);fc.clipPath=S.cardRect;
-  fc.setZoom(1);
-}
-initCard();
-loadSave();
-resize();
-
-function ensureTextObj(){
-  if(S.textObj)return S.textObj;
-  const c=S.cardRect,p=20;
-  S.textObj=new fabric.IText('',{
-    left:c.left+p,top:c.top+p,width:c.width-p*2,
-    fontSize:16,fontFamily:'-apple-system, "SF Pro Text", "Helvetica Neue", sans-serif',
-    fill:'#1c1c1e',lineHeight:1.75,splitByGrapheme:false,
-    editable:true,selectable:true,hasControls:false,hasBorders:false,
-    lockMovementX:false,lockMovementY:false,hoverCursor:'text'
-  });
-  fc.add(S.textObj);return S.textObj;
-}
-function enterTextMode(){const t=ensureTextObj();fc.setActiveObject(t);t.enterEditing();t.selectAll();fc.renderAll();}
-
-function applyBrush(){
-  let brush=new fabric.PencilBrush(fc);
-  if(S.tool==='eraser'){
-    brush.color = S.cardRect.fill;
-    brush.width = S.size * 2;
-    brush.strokeLineCap = 'round';
-    brush.strokeLineJoin = 'round';
-  }else if(S.tool==='marker'){
-    const hex=S.color.replace('#','');const r=parseInt(hex.slice(0,2),16),g=parseInt(hex.slice(2,4),16),b=parseInt(hex.slice(4,6),16);
-    brush.color=`rgba(${r},${g},${b},0.4)`;brush.width=S.size*3;brush.strokeLineCap='square';
-  }else{
-    brush.color=S.color;brush.width=S.size;brush.strokeLineCap='round';brush.strokeLineJoin='round';
-  }
-  fc.freeDrawingBrush=brush;
-}
-
-function saveHistory(){
-  const snap = JSON.stringify(fc.toJSON(['excludeFromExport']));
-  S.history.push(snap);
-  if(S.history.length > S.maxH) S.history.shift();
-  autoSave();
-}
-fc.on('path:created', saveHistory);
-fc.on('object:modified', saveHistory);
-fc.on('text:changed', saveHistory);
-
-const penBallEl=document.getElementById('pen-ball'),btnText=document.getElementById('btn-text'),btnDraw=document.getElementById('btn-draw');
-function setMode(mode){S.mode=mode;if(S.textObj&&S.textObj.isEditing)S.textObj.exitEditing();if(mode==='text'){fc.isDrawingMode=false;fc.selection=true;btnText.classList.add('active');btnDraw.classList.remove('active');penBallEl.classList.remove('visible');closePenPanel();setTimeout(enterTextMode,80);}else{fc.isDrawingMode=true;fc.selection=false;fc.discardActiveObject();btnDraw.classList.add('active');btnText.classList.remove('active');penBallEl.classList.add('visible');applyBrush();}fc.renderAll();}
-btnText.addEventListener('click',()=>setMode('text'));btnDraw.addEventListener('click',()=>setMode('draw'));
-
-document.getElementById('btn-save').addEventListener('click', () => {
-  autoSave();
-  showToast('已保存');
-});
-
-document.getElementById('btn-paste').addEventListener('click',async()=>{try{const t=ensureTextObj();if(!t.isEditing)t.enterEditing();t.insertChars(await navigator.clipboard.readText());fc.renderAll();showToast('已粘贴');}catch{showToast('请允许剪贴板权限');}});
-document.getElementById('btn-undo').addEventListener('click',()=>{if(S.history.length<=1){fc.getObjects().filter(o=>o!==S.cardRect).forEach(o=>fc.remove(o));S.textObj=null;S.history=[];fc.renderAll();showToast('已清空');return;}S.history.pop();fc.loadFromJSON(S.history[S.history.length-1],()=>{const o=fc.getObjects();S.cardRect=o.find(x=>x.excludeFromExport)||S.cardRect;S.textObj=o.find(x=>x.type==='i-text')||null;fc.sendToBack(S.cardRect);fc.clipPath=S.cardRect;fc.setZoom(1);fc.renderAll();});showToast('已撤销');});
-const confirmOverlay=document.getElementById('confirm-overlay');
-document.getElementById('btn-clear').addEventListener('click',()=>confirmOverlay.classList.add('show'));
-document.getElementById('btn-cancel').addEventListener('click',()=>confirmOverlay.classList.remove('show'));
-document.getElementById('btn-confirm').addEventListener('click',()=>{fc.getObjects().filter(o=>o!==S.cardRect).forEach(o=>fc.remove(o));S.textObj=null;S.history=[];localStorage.removeItem(STORAGE_KEY);fc.renderAll();confirmOverlay.classList.remove('show');showToast('已清空');});
-confirmOverlay.addEventListener('click',e=>{if(e.target===confirmOverlay)confirmOverlay.classList.remove('show');});
-const bgList=['#fceef5','#e7e6e9','#eef3fc','#f0f7ee'];let bgIdx=0;
-document.getElementById('btn-bg').addEventListener('click',()=>{bgIdx=(bgIdx+1)%bgList.length;document.body.style.background=bgList[bgIdx];showToast('背景已切换');});
-document.getElementById('btn-reading').addEventListener('click',()=>{document.body.classList.add('reading');if(S.textObj&&S.textObj.isEditing)S.textObj.exitEditing();fc.isDrawingMode=false;fc.discardActiveObject();fc.renderAll();});
-document.getElementById('exit-reading').addEventListener('click',()=>{document.body.classList.remove('reading');if(S.mode==='draw'){fc.isDrawingMode=true;applyBrush();}});
-const penTrigger=document.getElementById('pen-trigger'),penPanel=document.getElementById('pen-panel');
-let isDragging=false,lpTimer=null,dragSY=0,ballSY=0;
-penTrigger.addEventListener('pointerdown',e=>{dragSY=e.clientY;ballSY=penBallEl.getBoundingClientRect().top+penBallEl.offsetHeight/2;lpTimer=setTimeout(()=>{isDragging=true;closePenPanel();penBallEl.style.transition='none';},220);});
-document.addEventListener('pointermove',e=>{if(!isDragging)return;let t=ballSY+(e.clientY-dragSY);t=Math.max(50,Math.min(window.innerHeight-50,t));penBallEl.style.top=t+'px';penBallEl.style.transform='none';});
-document.addEventListener('pointerup',()=>{if(lpTimer)clearTimeout(lpTimer);if(!isDragging)return;isDragging=false;penBallEl.style.transition='';const cx=penBallEl.getBoundingClientRect().left+penBallEl.offsetWidth/2;if(cx<window.innerWidth/2){penBallEl.style.left='14px';penBallEl.style.right='auto';}else{penBallEl.style.right='14px';penBallEl.style.left='auto';}});
-penTrigger.addEventListener('click',()=>{if(!isDragging)penPanel.classList.toggle('open');});
-function closePenPanel(){penPanel.classList.remove('open');}
-const sizeSlider=document.getElementById('size-slider');
-function updateSliderBg(){sizeSlider.style.setProperty('--pct',((sizeSlider.value-1)/49*100).toFixed(1)+'%');}
-sizeSlider.addEventListener('input',e=>{S.size=parseInt(e.target.value,10);updateSliderBg();applyBrush();});
-updateSliderBg();
-const row1=document.getElementById('color-row-1'),row2=document.getElementById('color-row-2'),colorSection=document.getElementById('color-section');
-function renderPalette(){
-  row1.innerHTML='';row2.innerHTML='';
-  const colors=S.tool==='marker'?MarkerColors:PenColors;
-  colors.forEach((c,i)=>{const btn=document.createElement('div');btn.className='color-btn'+(c===S.color?' active':'');btn.style.backgroundColor=c;btn.dataset.color=c;btn.addEventListener('click',()=>{S.color=c;renderPalette();applyBrush();});(i<2?row1:row2).appendChild(btn);});
-}
-document.querySelectorAll('.pen-icon-btn').forEach(btn=>{btn.addEventListener('click',()=>{document.querySelectorAll('.pen-icon-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');S.tool=btn.dataset.tool;renderPalette();colorSection.style.display=S.tool==='eraser'?'none':'flex';applyBrush();});});
-renderPalette();
-let toastTimer;function showToast(msg){const el=document.getElementById('toast');el.textContent=msg;el.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.classList.remove('show'),1800);}
-setMode('text');
-</script>
-</body>
-</html>
+  
+<!DOCTYPE html>  
+<html lang="zh-CN">  
+<head>  
+<meta charset="UTF-8"/>  
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover"/>  
+<title>MarkIt</title>  
+<script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>  
+<style>  
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}  
+:root{  
+  --bg:#fceef5;  
+  --panel:#fff;  
+  --border:#DFE1E6;  
+  --shadow:0 1px 3px rgba(0,0,0,0.08);  
+  --blue:#4a90e2;  
+  --active-bg:#e8f0fe;  
+  --font:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",sans-serif;  
+}  
+html,body{  
+  height:100dvh;overflow:hidden;  
+  font-family:var(--font);  
+  background:var(--bg);  
+  transition:background .3s;  
+  user-select:none;-webkit-user-select:none;  
+}  
+#topbar{  
+  position:fixed;  
+  top:max(10px,env(safe-area-inset-top));  
+  right:max(14px,env(safe-area-inset-right));  
+  display:flex;align-items:center;gap:6px;  
+  z-index:200;  
+}  
+.tb-btn{  
+  display:flex;align-items:center;justify-content:center;gap:6px;  
+  height:34px;padding:0 11px;  
+  background:#fff;border:1px solid var(--border);border-radius:17px;  
+  box-shadow:var(--shadow);  
+  font-size:12.5px;font-weight:500;color:#1c1c1e;  
+  cursor:pointer;white-space:nowrap;  
+  transition:background .13s,border-color .13s,transform .1s;  
+  -webkit-tap-highlight-color:transparent;  
+}  
+.tb-btn svg{flex-shrink:0}  
+.tb-btn:hover{background:#f5f5f7}  
+.tb-btn:active{transform:scale(.95)}  
+.tb-btn.active{background:var(--active-bg);border-color:var(--blue)}  
+.tb-divider{width:1px;height:18px;background:var(--border)}  
+#canvas-wrapper{  
+  position:fixed;inset:0;  
+  background:transparent;  
+}  
+#c{  
+  background:transparent!important;  
+}  
+#c{display:block;width:100%!important;height:100%!important}  
+.lower-canvas,.upper-canvas{  
+  position:absolute!important;top:0!important;left:0!important;  
+}  
+#pen-ball{  
+  position:fixed;right:14px;top:50%;  
+  transform:translateY(-50%);  
+  z-index:300;display:none;flex-direction:column;align-items:center;  
+  touch-action:none;  
+}  
+#pen-ball.visible{display:flex}  
+#pen-trigger{  
+  width:46px;height:46px;border-radius:50%;  
+  background:#fff;border:1.5px solid var(--border);  
+  box-shadow:0 2px 10px rgba(0,0,0,0.13);  
+  display:flex;align-items:center;justify-content:center;  
+  cursor:pointer;transition:transform .13s;  
+  -webkit-tap-highlight-color:transparent;  
+}  
+#pen-trigger:active{transform:scale(.92)}  
+#pen-trigger svg{width:20px;height:20px;color:#1c1c1e}  
+#pen-panel{  
+  display:none;flex-direction:column;align-items:center;gap:10px;  
+  background:#fff;border:1px solid var(--border);border-radius:20px;  
+  padding:14px 10px;margin-top:8px;min-width:56px;  
+  box-shadow:0 6px 24px rgba(0,0,0,0.11);  
+}  
+#pen-panel.open{display:flex}  
+.pen-icon-btn{  
+  width:40px;height:40px;border-radius:50%;  
+  background:#f5f5f7;border:1.5px solid transparent;  
+  display:flex;align-items:center;justify-content:center;  
+  cursor:pointer;transition:background .12s,border-color .12s;  
+  -webkit-tap-highlight-color:transparent;  
+}  
+.pen-icon-btn.active{background:var(--active-bg);border-color:var(--blue)}  
+.pen-icon-btn svg{width:22px;height:22px}  
+.panel-label{font-size:10px;color:#aaa;font-weight:500;letter-spacing:.04em}  
+.panel-rule{width:30px;height:1px;background:#eee}  
+#size-track{  
+  display:flex;align-items:center;justify-content:center;  
+  width:30px;height:90px;  
+}  
+#size-slider{  
+  -webkit-appearance:none;appearance:none;  
+  writing-mode:vertical-lr;direction:rtl;  
+  width:4px;height:90px;  
+  border-radius:2px;outline:none;cursor:pointer;  
+  background:linear-gradient(to top,var(--blue) var(--pct,10%),#e0e0e0 var(--pct,10%));  
+}  
+#size-slider::-webkit-slider-thumb{  
+  -webkit-appearance:none;  
+  width:18px;height:18px;border-radius:50%;  
+  background:#fff;border:2px solid var(--blue);  
+  box-shadow:0 1px 4px rgba(0,0,0,0.18);  
+}  
+#color-section{display:flex;flex-direction:column;align-items:center;gap:8px;}  
+#color-palette{display:flex;flex-direction:column;gap:8px;}  
+.color-row{display:flex;gap:8px;}  
+.color-btn{  
+  width:22px;height:22px;border-radius:50%;border:2px solid transparent;  
+  cursor:pointer;transition:border-color .12s,transform .1s;  
+  -webkit-tap-highlight-color:transparent;  
+}  
+.color-btn:hover{transform:scale(1.1)}  
+.color-btn.active{border-color:var(--blue)}  
+#confirm-overlay{  
+  display:none;position:fixed;inset:0;  
+  background:rgba(0,0,0,0.22);z-index:600;  
+  align-items:center;justify-content:center;  
+  backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);  
+}  
+#confirm-overlay.show{display:flex}  
+#confirm-box{  
+  background:#fff;border-radius:20px;padding:26px 28px;  
+  width:290px;box-shadow:0 10px 40px rgba(0,0,0,0.14);text-align:center;  
+}  
+#confirm-box h3{font-size:16px;font-weight:600;margin-bottom:8px}  
+#confirm-box p{font-size:13px;color:#666;line-height:1.55;margin-bottom:20px}  
+#confirm-box .btn-row{display:flex;gap:10px}  
+#confirm-box button{  
+  flex:1;height:42px;border-radius:13px;border:none;  
+  font-size:14px;font-weight:500;cursor:pointer;  
+  transition:opacity .12s;  
+}  
+#confirm-box button:active{opacity:.72}  
+#btn-cancel{background:#f0f0f2;color:#1c1c1e}  
+#btn-confirm{background:#ff3b30;color:#fff}  
+#toast{  
+  position:fixed;bottom:30px;left:50%;  
+  transform:translateX(-50%) translateY(16px);  
+  background:rgba(28,28,30,.86);color:#fff;  
+  padding:9px 20px;border-radius:22px;font-size:13px;  
+  z-index:700;opacity:0;pointer-events:none;  
+  transition:opacity .18s,transform .18s;  
+  backdrop-filter:blur(10px);white-space:nowrap;  
+}  
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}  
+body.reading #topbar{opacity:0;pointer-events:none}  
+body.reading #pen-ball{display:none!important}  
+#exit-reading{  
+  display:none;position:fixed;  
+  top:max(10px,env(safe-area-inset-top));  
+  right:max(14px,env(safe-area-inset-right));  
+  z-index:400;  
+}  
+body.reading #exit-reading{display:flex}  
+#footer-brand{  
+  position:fixed;  
+  bottom:max(10px,env(safe-area-inset-bottom));  
+  left:50%;  
+  transform:translateX(-50%);  
+  font-size:12px;  
+  font-weight:600;  
+  color:rgba(0,0,0,0.25);  
+  letter-spacing:0.5px;  
+  z-index:150;  
+  pointer-events:none;  
+  user-select:none;  
+  -webkit-user-select:none;  
+}  
+</style>  
+</head>  
+<body>  
+  
+<svg style="display:none" xmlns="http://www.w3.org/2000/svg">  
+  <defs>  
+    <symbol id="icon-pen" viewBox="0 0 24 24"><path fill="currentColor" d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 000-1.41l-2.34-2.34a1 1 0 00-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></symbol>  
+    <symbol id="icon-marker" viewBox="0 0 24 24"><rect fill="currentColor" x="5" y="3" width="14" height="10" rx="2"/><polygon fill="currentColor" points="9,13 15,13 12,20"/><rect fill="currentColor" x="11" y="19" width="2" height="2.5" rx="1"/></symbol>  
+    <symbol id="icon-eraser" viewBox="0 0 24 24"><path fill="currentColor" d="M15.14 3L3 15.14 8.86 21H20v-2H11.17l-4-4L18 4.86 15.14 3z"/><path fill="currentColor" d="M3 21h18v-1H3z"/></symbol>  
+    <symbol id="icon-draw" viewBox="0 0 24 24"><path fill="currentColor" d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34a.9959.9959 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></symbol>  
+    <symbol id="icon-paste" viewBox="0 0 24 24"><path fill="currentColor" d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></symbol>  
+    <symbol id="icon-undo" viewBox="0 0 24 24"><path fill="currentColor" d="M12.5 8c-2.65 0-5.05.99-6.9 2.6L2 7v9h9l-3.62-3.62c1.39-1.16 3.16-1.88 5.12-1.88 3.54 0 6.55 2.31 7.6 5.5l2.37-.78C21.08 11.03 17.15 8 12.5 8z"/></symbol>  
+    <symbol id="icon-trash" viewBox="0 0 24 24"><path fill="currentColor" d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></symbol>  
+    <symbol id="icon-book" viewBox="0 0 24 24"><path fill="currentColor" d="M21 5c-1.11-.35-2.33-.5-3.5-.5-1.95 0-4.05.4-5.5 1.5-1.45-1.1-3.55-1.5-5.5-1.5S2.45 4.9 1 6v14.65c0 .25.25.5.5.5.1 0 .15-.05.25-.05C3.1 20.45 5.05 20 6.5 20c1.95 0 4.05.4 5.5 1.5 1.35-.85 3.8-1.5 5.5-1.5 1.65 0 3.35.3 4.75 1.05.1.05.15.05.25.05.25 0 .5-.25.5-.5V6c-.6-.45-1.25-.75-2-1zm0 13.5c-1.1-.35-2.3-.5-3.5-.5-1.7 0-4.15.65-5.5 1.5V8c1.35-.85 3.8-1.5 5.5-1.5 1.2 0 2.4.15 3.5.5v11.5z"/></symbol>  
+    <symbol id="icon-palette" viewBox="0 0 24 24"><path fill="currentColor" d="M12 3c-4.97 0-9 4.03-9 9s4.03 9 9 9c.83 0 1.5-.67 1.5-1.5 0-.39-.15-.74-.39-1.01-.23-.26-.38-.61-.38-.99 0-.83.67-1.5 1.5-1.5H16c2.76 0 5-2.24 5-5 0-4.42-4.03-8-9-8zm-5.5 9c-.83 0-1.5-.67-1.5-1.5S5.67 9 6.5 9 8 9.67 8 10.5 7.33 12 6.5 12zm3-4C8.67 8 8 7.33 8 6.5S8.67 5 9.5 5s1.5.67 1.5 1.5S10.33 8 9.5 8zm5 0c-.83 0-1.5-.67-1.5-1.5S13.67 5 14.5 5s1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/></symbol>  
+    <symbol id="icon-text" viewBox="0 0 24 24"><path fill="currentColor" d="M5 4v3h5.5v12h3V7H19V4H5z"/></symbol>  
+    <symbol id="icon-save" viewBox="0 0 24 24"><path fill="currentColor" d="M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3s-1.34 3-3 3zm3-10H5V5h10v4z"/></symbol>  
+  </defs>  
+</svg>  
+  
+<div id="footer-brand">© MarkIt 2026</div>  
+  
+<div id="topbar">  
+  <button class="tb-btn active" id="btn-text"><svg width="16" height="16"><use href="#icon-text"/></svg>文本</button>  
+  <button class="tb-btn" id="btn-draw"><svg width="16" height="16"><use href="#icon-draw"/></svg>做题</button>  
+  <div class="tb-divider"></div>  
+  <button class="tb-btn" id="btn-paste" title="粘贴"><svg width="16" height="16"><use href="#icon-paste"/></svg></button>  
+  <button class="tb-btn" id="btn-undo" title="撤销"><svg width="16" height="16"><use href="#icon-undo"/></svg></button>  
+  <button class="tb-btn" id="btn-save" title="保存"><svg width="16" height="16"><use href="#icon-save"/></svg></button>  
+  <button class="tb-btn" id="btn-clear" title="清空画布"><svg width="16" height="16"><use href="#icon-trash"/></svg></button>  
+  <div class="tb-divider"></div>  
+  <button class="tb-btn" id="btn-bg" title="切换背景"><svg width="16" height="16"><use href="#icon-palette"/></svg></button>  
+  <button class="tb-btn" id="btn-reading" title="阅读模式"><svg width="16" height="16"><use href="#icon-book"/></svg></button>  
+</div>  
+  
+<button class="tb-btn" id="exit-reading">  
+  <svg width="14" height="14" viewBox="0 0 24 24"><path fill="currentColor" d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>  
+  退出阅读  
+</button>  
+  
+<div id="canvas-wrapper"><canvas id="c"></canvas></div>  
+  
+<div id="pen-ball">  
+  <div id="pen-trigger"><svg width="20" height="20"><use href="#icon-draw"/></svg></div>  
+  <div id="pen-panel">  
+    <span class="panel-label">工具</span>  
+    <button class="pen-icon-btn active" data-tool="pen" title="钢笔"><svg><use href="#icon-pen"/></svg></button>  
+    <button class="pen-icon-btn" data-tool="marker" title="荧光笔"><svg><use href="#icon-marker"/></svg></button>  
+    <button class="pen-icon-btn" data-tool="eraser" title="橡皮擦"><svg><use href="#icon-eraser"/></svg></button>  
+    <div class="panel-rule"></div>  
+    <span class="panel-label">粗细</span>  
+    <div id="size-track"><input type="range" id="size-slider" min="1" max="50" value="3"/></div>  
+    <div class="panel-rule"></div>  
+    <div id="color-section">  
+      <span class="panel-label">颜色</span>  
+      <div id="color-palette">  
+        <div class="color-row" id="color-row-1"></div>  
+        <div class="color-row" id="color-row-2"></div>  
+      </div>  
+    </div>  
+  </div>  
+</div>  
+  
+<div id="confirm-overlay">  
+  <div id="confirm-box">  
+    <h3>清空画布</h3>  
+    <p>所有内容将被删除，此操作不可恢复。</p>  
+    <div class="btn-row">  
+      <button id="btn-cancel">取消</button>  
+      <button id="btn-confirm">清空</button>  
+    </div>  
+  </div>  
+</div>  
+  
+<div id="toast"></div>  
+  
+<script>  
+const PenColors = ['#2a303e', '#3094dd', '#d67780'];  
+const MarkerColors = ['#fff18f', '#a6e3a1', '#80cbc4'];  
+const STORAGE_KEY = 'markit_canvas_state';  
+const S = {  
+  mode:'text', tool:'pen', color:PenColors[0], size:3,  
+  history:[], maxH:60, textObj:null, cardRect:null,  
+};  
+const fc = new fabric.Canvas('c', {isDrawingMode:false, selection:true, backgroundColor:null, enableRetinaScaling:false});  
+  
+function autoSave(){  
+  try {  
+    const json = fc.toJSON(['excludeFromExport']);  
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(json));  
+  } catch(e) {}  
+}  
+  
+function loadSave(){  
+  try {  
+    const saved = localStorage.getItem(STORAGE_KEY);  
+    if(saved){  
+      const json = JSON.parse(saved);  
+      fc.loadFromJSON(json, () => {  
+        const objs = fc.getObjects();  
+        S.cardRect = objs.find(o => o.excludeFromExport) || S.cardRect;  
+        S.textObj = objs.find(o => o.type === 'i-text') || null;  
+        fc.sendToBack(S.cardRect);  
+        fc.clipPath = S.cardRect;  
+        fc.setZoom(1);  
+        fc.renderAll();  
+      });  
+    }  
+  } catch(e) {}  
+}  
+  
+function resize(){  
+  const W=window.innerWidth,H=window.innerHeight;  
+  fc.setWidth(W);fc.setHeight(H);  
+  if(S.cardRect){  
+    const dpr=window.devicePixelRatio||1,cm=37.8;  
+    const l=Math.round(0.5*cm/dpr),t=Math.round(2*cm/dpr),b=Math.round(0.5*cm/dpr);  
+    S.cardRect.set({left:l,top:t,width:W-l*2,height:H-t-b});  
+    fc.sendToBack(S.cardRect);  
+  }  
+  fc.setZoom(1);  
+  fc.renderAll();  
+}  
+window.addEventListener('resize', resize);  
+function initCard(){  
+  const W=window.innerWidth,H=window.innerHeight;  
+  const dpr=window.devicePixelRatio||1,cm=37.8;  
+  const l=Math.round(0.5*cm/dpr),t=Math.round(2*cm/dpr),b=Math.round(0.5*cm/dpr);  
+  S.cardRect=new fabric.Rect({  
+    left:l,top:t,width:W-l*2,height:H-t-b,  
+    fill:'rgba(255,255,255,0.93)',rx:14,ry:14,stroke:'#DFE1E6',strokeWidth:1,  
+    shadow:new fabric.Shadow({color:'rgba(0,0,0,0.07)',blur:14,offsetX:0,offsetY:2}),  
+    selectable:false,evented:false,hoverCursor:'default',excludeFromExport:true  
+  });  
+  fc.add(S.cardRect);fc.sendToBack(S.cardRect);fc.clipPath=S.cardRect;  
+  fc.setZoom(1);  
+}  
+initCard();  
+loadSave();  
+resize();  
+  
+function ensureTextObj(){  
+  if(S.textObj)return S.textObj;  
+  const c=S.cardRect,p=20;  
+  S.textObj=new fabric.IText('',{  
+    left:c.left+p,top:c.top+p,width:c.width-p*2,  
+    fontSize:16,fontFamily:'-apple-system, "SF Pro Text", "Helvetica Neue", sans-serif',  
+    fill:'#1c1c1e',lineHeight:1.75,splitByGrapheme:false,  
+    editable:true,selectable:true,hasControls:false,hasBorders:false,  
+    lockMovementX:false,lockMovementY:false,hoverCursor:'text'  
+  });  
+  fc.add(S.textObj);return S.textObj;  
+}  
+function enterTextMode(){const t=ensureTextObj();fc.setActiveObject(t);t.enterEditing();t.selectAll();fc.renderAll();}  
+  
+function applyBrush(){  
+  if(S.tool==='eraser'){  
+    let brush=new fabric.PencilBrush(fc);  
+    brush.color='rgba(0,0,0,0.01)';  
+    brush.width=S.size*2;  
+    brush.strokeLineCap='round';  
+    brush.strokeLineJoin='round';  
+    fc.freeDrawingBrush=brush;  
+    return;  
+  }  
+  let brush=new fabric.PencilBrush(fc);  
+  if(S.tool==='marker'){  
+    const hex=S.color.replace('#','');const r=parseInt(hex.slice(0,2),16),g=parseInt(hex.slice(2,4),16),b=parseInt(hex.slice(4,6),16);  
+    brush.color=`rgba(${r},${g},${b},0.4)`;brush.width=S.size*3;brush.strokeLineCap='square';  
+  }else{  
+    brush.color=S.color;brush.width=S.size;brush.strokeLineCap='round';brush.strokeLineJoin='round';  
+  }  
+  fc.freeDrawingBrush=brush;  
+}  
+  
+function saveHistory(){  
+  const snap = JSON.stringify(fc.toJSON(['excludeFromExport']));  
+  S.history.push(snap);  
+  if(S.history.length > S.maxH) S.history.shift();  
+  autoSave();  
+}  
+fc.on('path:created', function(e){  
+  if(S.tool==='eraser'){  
+    const eraserPath=e.path;  
+    const eraserBounds=eraserPath.getBoundingRect();  
+    const toRemove=fc.getObjects().filter(obj=>{  
+      if(obj===S.cardRect||obj===S.textObj||obj.excludeFromExport)return false;  
+      if(obj===eraserPath)return false;  
+      const b=obj.getBoundingRect();  
+      const overlap=!(b.left>eraserBounds.left+eraserBounds.width||  
+        b.left+b.width<eraserBounds.left||  
+        b.top>eraserBounds.top+eraserBounds.height||  
+        b.top+b.height<eraserBounds.top);  
+      return overlap;  
+    });  
+    toRemove.forEach(obj=>fc.remove(obj));  
+    fc.remove(eraserPath);  
+    fc.renderAll();  
+    saveHistory();  
+    return;  
+  }  
+  saveHistory();  
+});  
+fc.on('object:modified', saveHistory);  
+fc.on('text:changed', saveHistory);  
+  
+const penBallEl=document.getElementById('pen-ball'),btnText=document.getElementById('btn-text'),btnDraw=document.getElementById('btn-draw');  
+function setMode(mode){S.mode=mode;if(S.textObj&&S.textObj.isEditing)S.textObj.exitEditing();if(mode==='text'){fc.isDrawingMode=false;fc.selection=true;btnText.classList.add('active');btnDraw.classList.remove('active');penBallEl.classList.remove('visible');closePenPanel();setTimeout(enterTextMode,80);}else{fc.isDrawingMode=true;fc.selection=false;fc.discardActiveObject();btnDraw.classList.add('active');btnText.classList.remove('active');penBallEl.classList.add('visible');applyBrush();}fc.renderAll();}  
+btnText.addEventListener('click',()=>setMode('text'));btnDraw.addEventListener('click',()=>setMode('draw'));  
+  
+document.getElementById('btn-save').addEventListener('click', () => {  
+  autoSave();  
+  showToast('已保存');  
+});  
+  
+document.getElementById('btn-paste').addEventListener('click',async()=>{try{const t=ensureTextObj();if(!t.isEditing)t.enterEditing();t.insertChars(await navigator.clipboard.readText());fc.renderAll();showToast('已粘贴');}catch{showToast('请允许剪贴板权限');}});  
+document.getElementById('btn-undo').addEventListener('click',()=>{if(S.history.length<=1){fc.getObjects().filter(o=>o!==S.cardRect).forEach(o=>fc.remove(o));S.textObj=null;S.history=[];fc.renderAll();showToast('已清空');return;}S.history.pop();fc.loadFromJSON(S.history[S.history.length-1],()=>{const o=fc.getObjects();S.cardRect=o.find(x=>x.excludeFromExport)||S.cardRect;S.textObj=o.find(x=>x.type==='i-text')||null;fc.sendToBack(S.cardRect);fc.clipPath=S.cardRect;fc.setZoom(1);fc.renderAll();});showToast('已撤销');});  
+const confirmOverlay=document.getElementById('confirm-overlay');  
+document.getElementById('btn-clear').addEventListener('click',()=>confirmOverlay.classList.add('show'));  
+document.getElementById('btn-cancel').addEventListener('click',()=>confirmOverlay.classList.remove('show'));  
+document.getElementById('btn-confirm').addEventListener('click',()=>{fc.getObjects().filter(o=>o!==S.cardRect).forEach(o=>fc.remove(o));S.textObj=null;S.history=[];localStorage.removeItem(STORAGE_KEY);fc.renderAll();confirmOverlay.classList.remove('show');showToast('已清空');});  
+confirmOverlay.addEventListener('click',e=>{if(e.target===confirmOverlay)confirmOverlay.classList.remove('show');});  
+const bgList=['#fceef5','#e7e6e9','#eef3fc','#f0f7ee'];let bgIdx=0;  
+document.getElementById('btn-bg').addEventListener('click',()=>{bgIdx=(bgIdx+1)%bgList.length;document.body.style.background=bgList[bgIdx];showToast('背景已切换');});  
+document.getElementById('btn-reading').addEventListener('click',()=>{document.body.classList.add('reading');if(S.textObj&&S.textObj.isEditing)S.textObj.exitEditing();fc.isDrawingMode=false;fc.discardActiveObject();fc.renderAll();});  
+document.getElementById('exit-reading').addEventListener('click',()=>{document.body.classList.remove('reading');if(S.mode==='draw'){fc.isDrawingMode=true;applyBrush();}});  
+const penTrigger=document.getElementById('pen-trigger'),penPanel=document.getElementById('pen-panel');  
+let isDragging=false,lpTimer=null,dragSY=0,ballSY=0;  
+penTrigger.addEventListener('pointerdown',e=>{dragSY=e.clientY;ballSY=penBallEl.getBoundingClientRect().top+penBallEl.offsetHeight/2;lpTimer=setTimeout(()=>{isDragging=true;closePenPanel();penBallEl.style.transition='none';},220);});  
+document.addEventListener('pointermove',e=>{if(!isDragging)return;let t=ballSY+(e.clientY-dragSY);t=Math.max(50,Math.min(window.innerHeight-50,t));penBallEl.style.top=t+'px';penBallEl.style.transform='none';});  
+document.addEventListener('pointerup',()=>{if(lpTimer)clearTimeout(lpTimer);if(!isDragging)return;isDragging=false;penBallEl.style.transition='';const cx=penBallEl.getBoundingClientRect().left+penBallEl.offsetWidth/2;if(cx<window.innerWidth/2){penBallEl.style.left='14px';penBallEl.style.right='auto';}else{penBallEl.style.right='14px';penBallEl.style.left='auto';}});  
+penTrigger.addEventListener('click',()=>{if(!isDragging)penPanel.classList.toggle('open');});  
+function closePenPanel(){penPanel.classList.remove('open');}  
+const sizeSlider=document.getElementById('size-slider');  
+function updateSliderBg(){sizeSlider.style.setProperty('--pct',((sizeSlider.value-1)/49*100).toFixed(1)+'%');}  
+sizeSlider.addEventListener('input',e=>{S.size=parseInt(e.target.value,10);updateSliderBg();applyBrush();});  
+updateSliderBg();  
+const row1=document.getElementById('color-row-1'),row2=document.getElementById('color-row-2'),colorSection=document.getElementById('color-section');  
+function renderPalette(){  
+  row1.innerHTML='';row2.innerHTML='';  
+  const colors=S.tool==='marker'?MarkerColors:PenColors;  
+  colors.forEach((c,i)=>{const btn=document.createElement('div');btn.className='color-btn'+(c===S.color?' active':'');btn.style.backgroundColor=c;btn.dataset.color=c;btn.addEventListener('click',()=>{S.color=c;renderPalette();applyBrush();});(i<2?row1:row2).appendChild(btn);});  
+}  
+document.querySelectorAll('.pen-icon-btn').forEach(btn=>{btn.addEventListener('click',()=>{document.querySelectorAll('.pen-icon-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');S.tool=btn.dataset.tool;renderPalette();colorSection.style.display=S.tool==='eraser'?'none':'flex';applyBrush();});});  
+renderPalette();  
+let toastTimer;function showToast(msg){const el=document.getElementById('toast');el.textContent=msg;el.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.classList.remove('show'),1800);}  
+setMode('text');  
+</script>  
+</body>  
+</html>  
